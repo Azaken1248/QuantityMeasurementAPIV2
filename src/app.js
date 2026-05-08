@@ -1,10 +1,10 @@
 import express from 'express';
-import authController from './controllers/auth.controller.js';
+import routes from './routes/index.js';
 
 const app = express();
 
 app.use(express.json());
 
-app.post('/api/v1/auth/register', authController.register);
+app.use('/api/v1', routes);
 
 export default app;
