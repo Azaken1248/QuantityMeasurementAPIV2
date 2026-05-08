@@ -35,6 +35,33 @@ class AuthController {
             });
         }
     }
+    async login(req, res) {
+        try {
+            const { error, value } = loginSchema.validate(req.body);
+            if (error) {
+                return res.status(400).json({
+                    success: false,
+                    error: { code: 'VALIDATION_ERROR', message: error.details[0].message }
+                });
+            }
+
+            const data = await authService.loginUser(value);
+
+            return res.status(200).json({
+                success: true,
+                data: data,
+                message: "Login successful",
+                timestamp: new Date().toISOString()
+            });
+
+        } catch (error) {
+            return res.status(401).json({
+                success: false,
+                error: { code: 'AUTHENTICATION_FAILED', message: error.message },
+                timestamp: new Date().toISOString()
+            });
+        }
+    }
 }
 
 export default new AuthController();
