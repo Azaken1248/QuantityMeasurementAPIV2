@@ -317,6 +317,143 @@ async function testEdgeCases(token) {
     assert(typeof r7.body.timestamp === 'string', 'Timestamp is ISO string');
 }
 
+async function testCompareValidation(token) {
+    console.log('\n COMPARE — Input Validation');
+
+    const empty = await request('POST', '/measure/compare', {}, token);
+    assert(empty.status === 400, 'Empty body: 400', `Got ${empty.status}`);
+
+    const missingQty2 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'FEET' },
+    }, token);
+    assert(missingQty2.status === 400, 'Missing qty2: 400', `Got ${missingQty2.status}`);
+
+    const missingQty1 = await request('POST', '/measure/compare', {
+        qty2: { value: 1, unit: 'FEET' },
+    }, token);
+    assert(missingQty1.status === 400, 'Missing qty1: 400', `Got ${missingQty1.status}`);
+
+    const badUnit = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'BANANA' },
+        qty2: { value: 1, unit: 'FEET' },
+    }, token);
+    assert(badUnit.status === 400, 'Invalid unit: 400', `Got ${badUnit.status}`);
+
+    const missingValue = await request('POST', '/measure/compare', {
+        qty1: { unit: 'FEET' },
+        qty2: { value: 1, unit: 'FEET' },
+    }, token);
+    assert(missingValue.status === 400, 'Missing value in qty1: 400', `Got ${missingValue.status}`);
+
+    const crossType = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'LITRE' },
+    }, token);
+    assert(crossType.status === 400, 'Cross-type (LENGTH vs VOLUME): 400', `Got ${crossType.status}`);
+    assert(crossType.body.error?.code === 'INVALID_UNIT_TYPE', 'Cross-type: INVALID_UNIT_TYPE code');
+}
+
+async function testCompareEqual(token) {
+    console.log('\n COMPARE — Equal Cases');
+
+    const r1 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'YARD' },
+        qty2: { value: 3, unit: 'FEET' },
+    }, token);
+    assert(r1.status === 200, '1 YARD vs 3 FEET: 200', `Got ${r1.status}`);
+    assert(r1.body.data?.result === 'Equal', '1 YARD = 3 FEET', `Got ${r1.body.data?.result}`);
+
+    const r2 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 12, unit: 'INCH' },
+    }, token);
+    assert(r2.body.data?.result === 'Equal', '1 FEET = 12 INCH', `Got ${r2.body.data?.result}`);
+
+    const r3 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'LITRE' },
+        qty2: { value: 1000, unit: 'ML' },
+    }, token);
+    assert(r3.body.data?.result === 'Equal', '1 LITRE = 1000 ML', `Got ${r3.body.data?.result}`);
+
+    const r4 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'KG' },
+        qty2: { value: 1000, unit: 'GRAM' },
+    }, token);
+    assert(r4.body.data?.result === 'Equal', '1 KG = 1000 GRAM', `Got ${r4.body.data?.result}`);
+
+    const r5 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'TONNE' },
+        qty2: { value: 1000, unit: 'KG' },
+    }, token);
+    assert(r5.body.data?.result === 'Equal', '1 TONNE = 1000 KG', `Got ${r5.body.data?.result}`);
+
+    const r6 = await request('POST', '/measure/compare', {
+        qty1: { value: 212, unit: 'FAHRENHEIT' },
+        qty2: { value: 100, unit: 'CELSIUS' },
+    }, token);
+    assert(r6.body.data?.result === 'Equal', '212 F = 100 C', `Got ${r6.body.data?.result}`);
+
+    const r7 = await request('POST', '/measure/compare', {
+        qty1: { value: 0, unit: 'CELSIUS' },
+        qty2: { value: 273.15, unit: 'KELVIN' },
+    }, token);
+    assert(r7.body.data?.result === 'Equal', '0 C = 273.15 K', `Got ${r7.body.data?.result}`);
+
+    const r8 = await request('POST', '/measure/compare', {
+        qty1: { value: 5, unit: 'FEET' },
+        qty2: { value: 5, unit: 'FEET' },
+    }, token);
+    assert(r8.body.data?.result === 'Equal', 'Same unit same value: Equal', `Got ${r8.body.data?.result}`);
+}
+
+async function testCompareNotEqual(token) {
+    console.log('\n COMPARE — Not Equal Cases');
+
+    const r1 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'INCH' },
+    }, token);
+    assert(r1.body.data?.result === 'Not Equal', '1 FEET != 1 INCH', `Got ${r1.body.data?.result}`);
+
+    const r2 = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'GALLON' },
+        qty2: { value: 1, unit: 'LITRE' },
+    }, token);
+    assert(r2.body.data?.result === 'Not Equal', '1 GALLON != 1 LITRE', `Got ${r2.body.data?.result}`);
+
+    const r3 = await request('POST', '/measure/compare', {
+        qty1: { value: 100, unit: 'CELSIUS' },
+        qty2: { value: 100, unit: 'FAHRENHEIT' },
+    }, token);
+    assert(r3.body.data?.result === 'Not Equal', '100 C != 100 F', `Got ${r3.body.data?.result}`);
+
+    const r4 = await request('POST', '/measure/compare', {
+        qty1: { value: 0, unit: 'FEET' },
+        qty2: { value: 0, unit: 'INCH' },
+    }, token);
+    assert(r4.body.data?.result === 'Equal', '0 FEET = 0 INCH (both zero)', `Got ${r4.body.data?.result}`);
+
+    const r5 = await request('POST', '/measure/compare', {
+        qty1: { value: -40, unit: 'CELSIUS' },
+        qty2: { value: -40, unit: 'FAHRENHEIT' },
+    }, token);
+    assert(r5.body.data?.result === 'Equal', '-40 C = -40 F (crossover)', `Got ${r5.body.data?.result}`);
+}
+
+async function testCompareResponseStructure(token) {
+    console.log('\n COMPARE — Response Structure');
+
+    const r = await request('POST', '/measure/compare', {
+        qty1: { value: 1, unit: 'YARD' },
+        qty2: { value: 3, unit: 'FEET' },
+    }, token);
+    assert(r.body.success === true, 'Response has success=true');
+    assert(r.body.data?.result !== undefined, 'Response has data.result');
+    assert(r.body.message !== undefined, 'Response has message');
+    assert(r.body.timestamp !== undefined, 'Response has timestamp');
+    assert(typeof r.body.timestamp === 'string', 'Timestamp is ISO string');
+}
+
 async function main() {
     console.log('===================================================');
     console.log('  Quantity Measurement API — Integration Tests');
@@ -337,6 +474,10 @@ async function main() {
         await testConvertWeight(token);
         await testConvertTemperature(token);
         await testEdgeCases(token);
+        await testCompareValidation(token);
+        await testCompareEqual(token);
+        await testCompareNotEqual(token);
+        await testCompareResponseStructure(token);
 
     } catch (err) {
         console.error('\n FATAL ERROR:', err.message);
@@ -354,3 +495,4 @@ async function main() {
 }
 
 main();
+
