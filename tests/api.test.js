@@ -631,6 +631,108 @@ async function testCalculateResponseStructure(token) {
     assert(r.body.timestamp !== undefined, 'Response has timestamp');
 }
 
+async function testFavoriteValidation(token) {
+    console.log('\n FAVORITE — Input Validation');
+
+    const empty = await request('POST', '/users/me/favorites', {}, token);
+    assert(empty.status === 400, 'Empty body: 400', `Got ${empty.status}`);
+
+    const missingLabel = await request('POST', '/users/me/favorites', {
+        sourceUnit: 'CELSIUS', targetUnit: 'FAHRENHEIT',
+    }, token);
+    assert(missingLabel.status === 400, 'Missing label: 400', `Got ${missingLabel.status}`);
+
+    const missingSource = await request('POST', '/users/me/favorites', {
+        label: 'Test', targetUnit: 'FAHRENHEIT',
+    }, token);
+    assert(missingSource.status === 400, 'Missing sourceUnit: 400', `Got ${missingSource.status}`);
+
+    const missingTarget = await request('POST', '/users/me/favorites', {
+        label: 'Test', sourceUnit: 'CELSIUS',
+    }, token);
+    assert(missingTarget.status === 400, 'Missing targetUnit: 400', `Got ${missingTarget.status}`);
+
+    const badUnit = await request('POST', '/users/me/favorites', {
+        label: 'Test', sourceUnit: 'BANANA', targetUnit: 'FAHRENHEIT',
+    }, token);
+    assert(badUnit.status === 400, 'Invalid unit: 400', `Got ${badUnit.status}`);
+}
+
+async function testFavoriteCreate(token) {
+    console.log('\n FAVORITE — Create');
+
+    const r1 = await request('POST', '/users/me/favorites', {
+        label: 'Baking Temp', sourceUnit: 'CELSIUS', targetUnit: 'FAHRENHEIT',
+    }, token);
+    assert(r1.status === 201, 'Create: 201', `Got ${r1.status}`);
+    assert(r1.body.success === true, 'Create: success=true');
+    assert(r1.body.data?.id !== undefined, 'Create: returns UUID');
+    assert(r1.body.data?.label === 'Baking Temp', 'Create: returns label');
+    assert(r1.body.data?.sourceUnit === 'CELSIUS', 'Create: returns sourceUnit');
+    assert(r1.body.data?.targetUnit === 'FAHRENHEIT', 'Create: returns targetUnit');
+
+    const r2 = await request('POST', '/users/me/favorites', {
+        label: 'Distance', sourceUnit: 'FEET', targetUnit: 'INCH',
+    }, token);
+    assert(r2.status === 201, 'Create second: 201', `Got ${r2.status}`);
+
+    const dup = await request('POST', '/users/me/favorites', {
+        label: 'Duplicate Baking', sourceUnit: 'CELSIUS', targetUnit: 'FAHRENHEIT',
+    }, token);
+    assert(dup.status === 409, 'Duplicate route: 409', `Got ${dup.status}`);
+    assert(dup.body.error?.code === 'DUPLICATE_FAVORITE', 'Duplicate: DUPLICATE_FAVORITE code');
+}
+
+async function testFavoriteList(token) {
+    console.log('\n FAVORITE — List');
+
+    const r = await request('GET', '/users/me/favorites', null, token);
+    assert(r.status === 200, 'List: 200', `Got ${r.status}`);
+    assert(r.body.success === true, 'List: success=true');
+    assert(Array.isArray(r.body.data), 'List: data is array');
+    assert(r.body.data.length >= 2, 'List: at least 2 favorites', `Got ${r.body.data?.length}`);
+
+    const first = r.body.data[0];
+    assert(first.id !== undefined, 'List item has id');
+    assert(first.label !== undefined, 'List item has label');
+    assert(first.sourceUnit !== undefined, 'List item has sourceUnit');
+    assert(first.targetUnit !== undefined, 'List item has targetUnit');
+    assert(first.createdAt !== undefined, 'List item has createdAt');
+}
+
+async function testFavoriteDelete(token) {
+    console.log('\n FAVORITE — Delete');
+
+    const list = await request('GET', '/users/me/favorites', null, token);
+    const targetId = list.body.data[0].id;
+
+    const del = await request('DELETE', `/users/me/favorites/${targetId}`, null, token);
+    assert(del.status === 200, 'Delete: 200', `Got ${del.status}`);
+    assert(del.body.success === true, 'Delete: success=true');
+
+    const afterList = await request('GET', '/users/me/favorites', null, token);
+    const found = afterList.body.data.find(f => f.id === targetId);
+    assert(found === undefined, 'Delete: item removed from list');
+
+    const notFound = await request('DELETE', `/users/me/favorites/${targetId}`, null, token);
+    assert(notFound.status === 404, 'Delete again: 404', `Got ${notFound.status}`);
+
+    const fakeId = await request('DELETE', '/users/me/favorites/00000000-0000-0000-0000-000000000000', null, token);
+    assert(fakeId.status === 404, 'Delete fake ID: 404', `Got ${fakeId.status}`);
+}
+
+async function testFavoriteAuthGuard() {
+    console.log('\n FAVORITE — Auth Guard');
+
+    const noToken = await request('POST', '/users/me/favorites', {
+        label: 'Test', sourceUnit: 'FEET', targetUnit: 'INCH',
+    });
+    assert(noToken.status === 401, 'No token: 401', `Got ${noToken.status}`);
+
+    const getNoToken = await request('GET', '/users/me/favorites');
+    assert(getNoToken.status === 401, 'GET no token: 401', `Got ${getNoToken.status}`);
+}
+
 async function main() {
     console.log('===================================================');
     console.log('  Quantity Measurement API — Integration Tests');
@@ -661,6 +763,11 @@ async function main() {
         await testCalculateMultiply(token);
         await testCalculateDivide(token);
         await testCalculateResponseStructure(token);
+        await testFavoriteAuthGuard();
+        await testFavoriteValidation(token);
+        await testFavoriteCreate(token);
+        await testFavoriteList(token);
+        await testFavoriteDelete(token);
 
     } catch (err) {
         console.error('\n FATAL ERROR:', err.message);
@@ -678,3 +785,4 @@ async function main() {
 }
 
 main();
+
