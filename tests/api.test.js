@@ -733,6 +733,79 @@ async function testFavoriteAuthGuard() {
     assert(getNoToken.status === 401, 'GET no token: 401', `Got ${getNoToken.status}`);
 }
 
+async function testHistoryAuthGuard() {
+    console.log('\n HISTORY — Auth Guard');
+
+    const noToken = await request('GET', '/users/me/history');
+    assert(noToken.status === 401, 'No token: 401', `Got ${noToken.status}`);
+}
+
+async function testHistoryDefault(token) {
+    console.log('\n HISTORY — Default Pagination');
+
+    const r = await request('GET', '/users/me/history', null, token);
+    assert(r.status === 200, 'List: 200', `Got ${r.status}`);
+    assert(r.body.success === true, 'List: success=true');
+    assert(Array.isArray(r.body.data), 'data is array');
+    assert(r.body.data.length > 0, 'Has records from prior tests', `Got ${r.body.data.length}`);
+    assert(r.body.pagination !== undefined, 'Has pagination object');
+    assert(r.body.pagination.page === 1, 'Default page=1', `Got ${r.body.pagination.page}`);
+    assert(r.body.pagination.limit === 20, 'Default limit=20', `Got ${r.body.pagination.limit}`);
+    assert(r.body.pagination.totalRecords > 0, 'totalRecords > 0');
+    assert(r.body.pagination.totalPages >= 1, 'totalPages >= 1');
+}
+
+async function testHistoryPagination(token) {
+    console.log('\n HISTORY — Custom Pagination');
+
+    const r1 = await request('GET', '/users/me/history?page=1&limit=2', null, token);
+    assert(r1.status === 200, 'Limit=2: 200', `Got ${r1.status}`);
+    assert(r1.body.data.length <= 2, 'Limit=2: at most 2 records', `Got ${r1.body.data.length}`);
+    assert(r1.body.pagination.page === 1, 'Limit=2: page=1');
+    assert(r1.body.pagination.limit === 2, 'Limit=2: limit=2');
+
+    const totalPages = r1.body.pagination.totalPages;
+    const beyondPage = totalPages + 1;
+    const r2 = await request('GET', `/users/me/history?page=${beyondPage}&limit=2`, null, token);
+    assert(r2.status === 200, 'Beyond last page: 200', `Got ${r2.status}`);
+    assert(r2.body.data.length === 0, 'Beyond last page: 0 records', `Got ${r2.body.data.length}`);
+
+    const r3 = await request('GET', '/users/me/history?page=1&limit=1', null, token);
+    assert(r3.body.data.length === 1, 'Limit=1: exactly 1 record', `Got ${r3.body.data.length}`);
+}
+
+async function testHistoryRecordStructure(token) {
+    console.log('\n HISTORY — Record Structure');
+
+    const r = await request('GET', '/users/me/history?page=1&limit=5', null, token);
+    const record = r.body.data[0];
+
+    assert(record.id !== undefined, 'Record has id');
+    assert(record.operation !== undefined, 'Record has operation');
+    assert(record.measurementType !== undefined, 'Record has measurementType');
+    assert(record.input1Value !== undefined, 'Record has input1Value');
+    assert(record.input1Unit !== undefined, 'Record has input1Unit');
+    assert(record.createdAt !== undefined, 'Record has createdAt');
+
+    const ops = ['CONVERT', 'COMPARE', 'ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE'];
+    assert(ops.includes(record.operation), 'operation is valid enum', `Got ${record.operation}`);
+}
+
+async function testHistoryOrdering(token) {
+    console.log('\n HISTORY — Ordering');
+
+    const r = await request('GET', '/users/me/history?limit=100', null, token);
+    const records = r.body.data;
+
+    if (records.length >= 2) {
+        const first = new Date(records[0].createdAt).getTime();
+        const second = new Date(records[1].createdAt).getTime();
+        assert(first >= second, 'Records ordered newest-first');
+    } else {
+        assert(true, 'Records ordered newest-first (not enough data to verify)');
+    }
+}
+
 async function main() {
     console.log('===================================================');
     console.log('  Quantity Measurement API — Integration Tests');
@@ -768,6 +841,11 @@ async function main() {
         await testFavoriteCreate(token);
         await testFavoriteList(token);
         await testFavoriteDelete(token);
+        await testHistoryAuthGuard();
+        await testHistoryDefault(token);
+        await testHistoryPagination(token);
+        await testHistoryRecordStructure(token);
+        await testHistoryOrdering(token);
 
     } catch (err) {
         console.error('\n FATAL ERROR:', err.message);
@@ -785,4 +863,3 @@ async function main() {
 }
 
 main();
-
