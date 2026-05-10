@@ -15,7 +15,7 @@ const MeasurementHistory = sequelize.define('MeasurementHistory', {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-            isIn: [['CONVERT', 'ADD', 'COMPARE']],
+            isIn: [['CONVERT', 'COMPARE', 'ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE']],
         },
     },
     measurementType: {
