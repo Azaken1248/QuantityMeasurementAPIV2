@@ -32,4 +32,13 @@ const compareSchema = Joi.object({
     qty2: quantitySchema.required(),
 });
 
-export { registerSchema, loginSchema, convertSchema, compareSchema };
+const calculateSchema = Joi.object({
+    op: Joi.string().valid('ADD', 'SUBTRACT', 'MULTIPLY', 'DIVIDE').required()
+        .messages({ 'any.only': 'op must be one of: ADD, SUBTRACT, MULTIPLY, DIVIDE' }),
+    qty1: quantitySchema.required(),
+    qty2: quantitySchema.required(),
+    targetUnit: Joi.string().valid(...VALID_UNITS).required()
+        .messages({ 'any.only': `targetUnit must be one of: ${VALID_UNITS.join(', ')}` }),
+});
+
+export { registerSchema, loginSchema, convertSchema, compareSchema, calculateSchema };
