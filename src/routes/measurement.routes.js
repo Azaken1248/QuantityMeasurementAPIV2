@@ -8,6 +8,6 @@ router.use(verifyToken);
 
 router.post('/convert', measurementController.convert);
 router.post('/compare', measurementController.compare);
-// router.post('/calculate', measurementController.calculate);
+router.post('/calculate', measurementController.calculate);
 
 export default router;
