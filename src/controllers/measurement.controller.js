@@ -1,5 +1,5 @@
 import measurementService from '../services/measurement.service.js';
-import { convertSchema } from '../validation/schemas.js';
+import { convertSchema, compareSchema } from '../validation/schemas.js';
 
 class MeasurementController {
 
@@ -38,6 +38,43 @@ class MeasurementController {
             });
         }
     }
+
+    async compare(req, res) {
+        try {
+            const { error, value } = compareSchema.validate(req.body);
+            if (error) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'VALIDATION_ERROR',
+                        message: error.details[0].message,
+                    },
+                    timestamp: new Date().toISOString(),
+                });
+            }
+
+            const result = await measurementService.compare(req.user.id, value);
+
+            return res.status(200).json({
+                success: true,
+                data: result,
+                message: `Compared ${value.qty1.value} ${value.qty1.unit} with ${value.qty2.value} ${value.qty2.unit}`,
+                timestamp: new Date().toISOString(),
+            });
+
+        } catch (error) {
+            const status = error.status || 500;
+            return res.status(status).json({
+                success: false,
+                error: {
+                    code: error.code || 'COMPARISON_FAILED',
+                    message: error.message || 'An unexpected error occurred',
+                },
+                timestamp: new Date().toISOString(),
+            });
+        }
+    }
 }
 
 export default new MeasurementController();
+
