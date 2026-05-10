@@ -454,6 +454,183 @@ async function testCompareResponseStructure(token) {
     assert(typeof r.body.timestamp === 'string', 'Timestamp is ISO string');
 }
 
+async function testCalculateValidation(token) {
+    console.log('\n CALCULATE — Input Validation');
+
+    const empty = await request('POST', '/measure/calculate', {}, token);
+    assert(empty.status === 400, 'Empty body: 400', `Got ${empty.status}`);
+
+    const missingOp = await request('POST', '/measure/calculate', {
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'INCH' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(missingOp.status === 400, 'Missing op: 400', `Got ${missingOp.status}`);
+
+    const badOp = await request('POST', '/measure/calculate', {
+        op: 'MODULO',
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'INCH' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(badOp.status === 400, 'Invalid op (MODULO): 400', `Got ${badOp.status}`);
+
+    const missingTarget = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'INCH' },
+    }, token);
+    assert(missingTarget.status === 400, 'Missing targetUnit: 400', `Got ${missingTarget.status}`);
+
+    const crossType = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'LITRE' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(crossType.status === 400, 'Cross-type units: 400', `Got ${crossType.status}`);
+
+    const crossTarget = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'INCH' },
+        targetUnit: 'LITRE',
+    }, token);
+    assert(crossTarget.status === 400, 'Cross-type target: 400', `Got ${crossTarget.status}`);
+
+    const tempCalc = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 100, unit: 'CELSIUS' },
+        qty2: { value: 32, unit: 'FAHRENHEIT' },
+        targetUnit: 'KELVIN',
+    }, token);
+    assert(tempCalc.status === 400, 'Temperature arithmetic: 400', `Got ${tempCalc.status}`);
+    assert(tempCalc.body.error?.code === 'UNSUPPORTED_OPERATION', 'Temperature: UNSUPPORTED_OPERATION');
+}
+
+async function testCalculateAdd(token) {
+    console.log('\n CALCULATE — ADD');
+
+    const r1 = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 12, unit: 'INCH' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(r1.status === 200, 'ADD 1ft + 12in → INCH: 200', `Got ${r1.status}`);
+    assert(r1.body.data?.resultValue === 24, 'ADD: 1ft + 12in = 24in', `Got ${r1.body.data?.resultValue}`);
+    assert(r1.body.data?.resultUnit === 'INCH', 'ADD: resultUnit=INCH');
+
+    const r2 = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 1, unit: 'GALLON' },
+        qty2: { value: 3785.41, unit: 'ML' },
+        targetUnit: 'LITRE',
+    }, token);
+    assert(Math.abs(r2.body.data?.resultValue - 7.57082) < 0.01, 'ADD: 1gal + 3785.41ml in L', `Got ${r2.body.data?.resultValue}`);
+
+    const r3 = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 500, unit: 'GRAM' },
+        qty2: { value: 0.5, unit: 'KG' },
+        targetUnit: 'KG',
+    }, token);
+    assert(r3.body.data?.resultValue === 1, 'ADD: 500g + 0.5kg = 1kg', `Got ${r3.body.data?.resultValue}`);
+}
+
+async function testCalculateSubtract(token) {
+    console.log('\n CALCULATE — SUBTRACT');
+
+    const r1 = await request('POST', '/measure/calculate', {
+        op: 'SUBTRACT',
+        qty1: { value: 1, unit: 'YARD' },
+        qty2: { value: 1, unit: 'FEET' },
+        targetUnit: 'FEET',
+    }, token);
+    assert(r1.body.data?.resultValue === 2, 'SUB: 1yd - 1ft = 2ft', `Got ${r1.body.data?.resultValue}`);
+
+    const r2 = await request('POST', '/measure/calculate', {
+        op: 'SUBTRACT',
+        qty1: { value: 2, unit: 'LITRE' },
+        qty2: { value: 500, unit: 'ML' },
+        targetUnit: 'ML',
+    }, token);
+    assert(r2.body.data?.resultValue === 1500, 'SUB: 2L - 500ml = 1500ml', `Got ${r2.body.data?.resultValue}`);
+
+    const r3 = await request('POST', '/measure/calculate', {
+        op: 'SUBTRACT',
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'FEET' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(r3.body.data?.resultValue === 0, 'SUB: same values = 0', `Got ${r3.body.data?.resultValue}`);
+}
+
+async function testCalculateMultiply(token) {
+    console.log('\n CALCULATE — MULTIPLY');
+
+    const r1 = await request('POST', '/measure/calculate', {
+        op: 'MULTIPLY',
+        qty1: { value: 2, unit: 'FEET' },
+        qty2: { value: 3, unit: 'FEET' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(r1.body.data?.resultValue === 864, 'MUL: 2ft * 3ft in INCH', `Got ${r1.body.data?.resultValue}`);
+
+    const r2 = await request('POST', '/measure/calculate', {
+        op: 'MULTIPLY',
+        qty1: { value: 0, unit: 'KG' },
+        qty2: { value: 100, unit: 'GRAM' },
+        targetUnit: 'GRAM',
+    }, token);
+    assert(r2.body.data?.resultValue === 0, 'MUL: 0 * anything = 0', `Got ${r2.body.data?.resultValue}`);
+}
+
+async function testCalculateDivide(token) {
+    console.log('\n CALCULATE — DIVIDE');
+
+    const r1 = await request('POST', '/measure/calculate', {
+        op: 'DIVIDE',
+        qty1: { value: 1, unit: 'YARD' },
+        qty2: { value: 1, unit: 'FEET' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(r1.body.data?.resultValue === 3, 'DIV: 1yd / 1ft in INCH = 3', `Got ${r1.body.data?.resultValue}`);
+
+    const r2 = await request('POST', '/measure/calculate', {
+        op: 'DIVIDE',
+        qty1: { value: 1, unit: 'KG' },
+        qty2: { value: 500, unit: 'GRAM' },
+        targetUnit: 'GRAM',
+    }, token);
+    assert(r2.body.data?.resultValue === 2, 'DIV: 1kg / 500g in GRAM = 2', `Got ${r2.body.data?.resultValue}`);
+
+    const divZero = await request('POST', '/measure/calculate', {
+        op: 'DIVIDE',
+        qty1: { value: 10, unit: 'FEET' },
+        qty2: { value: 0, unit: 'INCH' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(divZero.status === 400, 'DIV by zero: 400', `Got ${divZero.status}`);
+    assert(divZero.body.error?.code === 'DIVISION_BY_ZERO', 'DIV by zero: DIVISION_BY_ZERO code');
+}
+
+async function testCalculateResponseStructure(token) {
+    console.log('\n CALCULATE — Response Structure');
+
+    const r = await request('POST', '/measure/calculate', {
+        op: 'ADD',
+        qty1: { value: 1, unit: 'FEET' },
+        qty2: { value: 1, unit: 'FEET' },
+        targetUnit: 'INCH',
+    }, token);
+    assert(r.body.success === true, 'Response has success=true');
+    assert(r.body.data?.resultValue !== undefined, 'Response has data.resultValue');
+    assert(r.body.data?.resultUnit !== undefined, 'Response has data.resultUnit');
+    assert(r.body.message !== undefined, 'Response has message');
+    assert(r.body.timestamp !== undefined, 'Response has timestamp');
+}
+
 async function main() {
     console.log('===================================================');
     console.log('  Quantity Measurement API — Integration Tests');
@@ -478,6 +655,12 @@ async function main() {
         await testCompareEqual(token);
         await testCompareNotEqual(token);
         await testCompareResponseStructure(token);
+        await testCalculateValidation(token);
+        await testCalculateAdd(token);
+        await testCalculateSubtract(token);
+        await testCalculateMultiply(token);
+        await testCalculateDivide(token);
+        await testCalculateResponseStructure(token);
 
     } catch (err) {
         console.error('\n FATAL ERROR:', err.message);
@@ -495,4 +678,3 @@ async function main() {
 }
 
 main();
-
