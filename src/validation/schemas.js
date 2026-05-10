@@ -21,4 +21,15 @@ const convertSchema = Joi.object({
         .messages({ 'any.only': `targetUnit must be one of: ${VALID_UNITS.join(', ')}` }),
 });
 
-export { registerSchema, loginSchema, convertSchema };
+const quantitySchema = Joi.object({
+    value: Joi.number().required(),
+    unit: Joi.string().valid(...VALID_UNITS).required()
+        .messages({ 'any.only': `unit must be one of: ${VALID_UNITS.join(', ')}` }),
+});
+
+const compareSchema = Joi.object({
+    qty1: quantitySchema.required(),
+    qty2: quantitySchema.required(),
+});
+
+export { registerSchema, loginSchema, convertSchema, compareSchema };
