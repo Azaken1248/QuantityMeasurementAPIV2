@@ -1,5 +1,5 @@
 import authService from '../services/auth.service.js';
-import { registerSchema } from '../validation/schemas.js';
+import { registerSchema, loginSchema } from '../validation/schemas.js';
 
 class AuthController {
     async register(req, res) {
