@@ -806,6 +806,71 @@ async function testHistoryOrdering(token) {
     }
 }
 
+async function registerAdmin() {
+    const adminUser = {
+        email: `admin_${UNIQUE}@test.com`,
+        password: 'AdminPass123!',
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'ADMIN',
+    };
+
+    await request('POST', '/auth/register', adminUser);
+    const login = await request('POST', '/auth/login', {
+        email: adminUser.email,
+        password: adminUser.password,
+    });
+    return login.body.data?.accessToken;
+}
+
+async function testGlobalHistoryRoleGuard(token) {
+    console.log('\n GLOBAL HISTORY — Role Guard');
+
+    const noToken = await request('GET', '/admin/history');
+    assert(noToken.status === 401, 'No token: 401', `Got ${noToken.status}`);
+
+    const userToken = await request('GET', '/admin/history', null, token);
+    assert(userToken.status === 403, 'Standard user: 403', `Got ${userToken.status}`);
+    assert(userToken.body.error?.code === 'FORBIDDEN', 'Standard user: FORBIDDEN code');
+}
+
+async function testGlobalHistoryAccess(adminToken) {
+    console.log('\n GLOBAL HISTORY — Admin Access');
+
+    const r = await request('GET', '/admin/history', null, adminToken);
+    assert(r.status === 200, 'Admin access: 200', `Got ${r.status}`);
+    assert(r.body.success === true, 'success=true');
+    assert(Array.isArray(r.body.data), 'data is array');
+    assert(r.body.data.length > 0, 'Has records', `Got ${r.body.data.length}`);
+    assert(r.body.pagination !== undefined, 'Has pagination');
+    assert(r.body.pagination.totalRecords > 0, 'totalRecords > 0');
+}
+
+async function testGlobalHistoryUserInfo(adminToken) {
+    console.log('\n GLOBAL HISTORY — User Info in Records');
+
+    const r = await request('GET', '/admin/history?limit=5', null, adminToken);
+    const record = r.body.data[0];
+
+    assert(record.userId !== undefined, 'Record has userId');
+    assert(record.user !== undefined, 'Record has user object');
+    assert(record.user?.email !== undefined, 'User has email');
+    assert(record.user?.firstName !== undefined, 'User has firstName');
+    assert(record.user?.lastName !== undefined, 'User has lastName');
+}
+
+async function testGlobalHistoryPagination(adminToken) {
+    console.log('\n GLOBAL HISTORY — Pagination');
+
+    const r1 = await request('GET', '/admin/history?page=1&limit=2', null, adminToken);
+    assert(r1.body.data.length <= 2, 'Limit=2: at most 2', `Got ${r1.body.data.length}`);
+    assert(r1.body.pagination.limit === 2, 'limit=2');
+
+    const totalPages = r1.body.pagination.totalPages;
+    const r2 = await request('GET', `/admin/history?page=${totalPages + 1}&limit=2`, null, adminToken);
+    assert(r2.body.data.length === 0, 'Beyond last: 0 records', `Got ${r2.body.data.length}`);
+}
+
 async function main() {
     console.log('===================================================');
     console.log('  Quantity Measurement API — Integration Tests');
@@ -847,6 +912,12 @@ async function main() {
         await testHistoryRecordStructure(token);
         await testHistoryOrdering(token);
 
+        await testGlobalHistoryRoleGuard(token);
+        const adminToken = await registerAdmin();
+        await testGlobalHistoryAccess(adminToken);
+        await testGlobalHistoryUserInfo(adminToken);
+        await testGlobalHistoryPagination(adminToken);
+
     } catch (err) {
         console.error('\n FATAL ERROR:', err.message);
         failed++;
@@ -863,3 +934,4 @@ async function main() {
 }
 
 main();
+
