@@ -1,5 +1,7 @@
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import RefreshToken from '../models/RefreshToken.js';
 
 class AuthService {
     async registerUser({ email, password, firstName, lastName }) {
