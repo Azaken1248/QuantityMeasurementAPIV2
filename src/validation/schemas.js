@@ -41,4 +41,12 @@ const calculateSchema = Joi.object({
         .messages({ 'any.only': `targetUnit must be one of: ${VALID_UNITS.join(', ')}` }),
 });
 
-export { registerSchema, loginSchema, convertSchema, compareSchema, calculateSchema };
+const favoriteSchema = Joi.object({
+    label: Joi.string().min(1).max(100).required(),
+    sourceUnit: Joi.string().valid(...VALID_UNITS).required()
+        .messages({ 'any.only': `sourceUnit must be one of: ${VALID_UNITS.join(', ')}` }),
+    targetUnit: Joi.string().valid(...VALID_UNITS).required()
+        .messages({ 'any.only': `targetUnit must be one of: ${VALID_UNITS.join(', ')}` }),
+});
+
+export { registerSchema, loginSchema, convertSchema, compareSchema, calculateSchema, favoriteSchema };
