@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Quantity Measurement API - Convert, compare, and calculate measurements with precision.">
+    <title>Quantity Measurement</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <nav id="navbar">
+            <div class="nav-brand">
+                <i class="fa-solid fa-ruler-combined"></i>
+                <span>QuantiMeasure</span>
+            </div>
+            <div class="nav-user" id="navUser" style="display:none;">
+                <span id="navUserName"></span>
+                <button class="btn-icon" id="btnLogout" title="Logout">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </nav>
+
+        <div id="authView" class="view">
+            <div class="auth-container">
+                <div class="auth-header">
+                    <h1>QuantiMeasure</h1>
+                    <p>Precision measurement tools at your fingertips</p>
+                </div>
+                <div class="auth-tabs">
+                    <button class="tab active" data-tab="login">Sign In</button>
+                    <button class="tab" data-tab="register">Sign Up</button>
+                </div>
+                <form id="loginForm" class="auth-form">
+                    <div class="input-group">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="loginEmail" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="loginPassword" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Sign In
+                    </button>
+                </form>
+                <form id="registerForm" class="auth-form" style="display:none;">
+                    <div class="input-row">
+                        <div class="input-group">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="regFirstName" placeholder="First Name" required>
+                        </div>
+                        <div class="input-group">
+                            <i class="fa-solid fa-user"></i>
+                            <input type="text" id="regLastName" placeholder="Last Name" required>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-envelope"></i>
+                        <input type="email" id="regEmail" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="regPassword" placeholder="Password (min 8 chars)" required minlength="8">
+                    </div>
+                    <button type="submit" class="btn-primary">
+                        <i class="fa-solid fa-user-plus"></i> Create Account
+                    </button>
+                </form>
+                <div id="authError" class="error-msg" style="display:none;"></div>
+            </div>
+        </div>
+
+        <div id="mainView" class="view" style="display:none;">
+            <div class="sidebar">
+                <button class="sidebar-btn active" data-section="convert">
+                    <i class="fa-solid fa-right-left"></i>
+                    <span>Convert</span>
+                </button>
+                <button class="sidebar-btn" data-section="compare">
+                    <i class="fa-solid fa-scale-balanced"></i>
+                    <span>Compare</span>
+                </button>
+                <button class="sidebar-btn" data-section="calculate">
+                    <i class="fa-solid fa-calculator"></i>
+                    <span>Calculate</span>
+                </button>
+                <button class="sidebar-btn" data-section="favorites">
+                    <i class="fa-solid fa-star"></i>
+                    <span>Favorites</span>
+                </button>
+                <button class="sidebar-btn" data-section="history">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History</span>
+                </button>
+            </div>
+
+            <main class="content">
+                <section id="convertSection" class="section">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-right-left"></i> Convert</h2>
+                    </div>
+                    <div class="card">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label>Value</label>
+                                <input type="number" id="convertValue" placeholder="Enter value" step="any">
+                            </div>
+                            <div class="input-group">
+                                <label>From</label>
+                                <select id="convertFrom"></select>
+                            </div>
+                            <div class="swap-btn-wrap">
+                                <button class="btn-icon swap-btn" id="btnSwapUnits" title="Swap units">
+                                    <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                                </button>
+                            </div>
+                            <div class="input-group">
+                                <label>To</label>
+                                <select id="convertTo"></select>
+                            </div>
+                        </div>
+                        <button class="btn-primary" id="btnConvert">
+                            <i class="fa-solid fa-right-left"></i> Convert
+                        </button>
+                        <button class="btn-ghost" id="btnSaveFav" style="display:none;">
+                            <i class="fa-regular fa-star"></i> Save as Favorite
+                        </button>
+                        <div id="convertResult" class="result-display" style="display:none;"></div>
+                    </div>
+                </section>
+
+                <section id="compareSection" class="section" style="display:none;">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-scale-balanced"></i> Compare</h2>
+                    </div>
+                    <div class="card">
+                        <div class="compare-grid">
+                            <div class="compare-side">
+                                <h3>Quantity 1</h3>
+                                <div class="input-group">
+                                    <label>Value</label>
+                                    <input type="number" id="cmpVal1" placeholder="Value" step="any">
+                                </div>
+                                <div class="input-group">
+                                    <label>Unit</label>
+                                    <select id="cmpUnit1"></select>
+                                </div>
+                            </div>
+                            <div class="compare-vs">
+                                <i class="fa-solid fa-scale-balanced"></i>
+                            </div>
+                            <div class="compare-side">
+                                <h3>Quantity 2</h3>
+                                <div class="input-group">
+                                    <label>Value</label>
+                                    <input type="number" id="cmpVal2" placeholder="Value" step="any">
+                                </div>
+                                <div class="input-group">
+                                    <label>Unit</label>
+                                    <select id="cmpUnit2"></select>
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn-primary" id="btnCompare">
+                            <i class="fa-solid fa-scale-balanced"></i> Compare
+                        </button>
+                        <div id="compareResult" class="result-display" style="display:none;"></div>
+                    </div>
+                </section>
+
+                <section id="calculateSection" class="section" style="display:none;">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-calculator"></i> Calculate</h2>
+                    </div>
+                    <div class="card">
+                        <div class="input-group">
+                            <label>Operation</label>
+                            <div class="op-buttons">
+                                <button class="op-btn active" data-op="ADD"><i class="fa-solid fa-plus"></i> Add</button>
+                                <button class="op-btn" data-op="SUBTRACT"><i class="fa-solid fa-minus"></i> Sub</button>
+                                <button class="op-btn" data-op="MULTIPLY"><i class="fa-solid fa-xmark"></i> Mul</button>
+                                <button class="op-btn" data-op="DIVIDE"><i class="fa-solid fa-divide"></i> Div</button>
+                            </div>
+                        </div>
+                        <div class="calc-grid">
+                            <div class="input-group">
+                                <label>Value 1</label>
+                                <input type="number" id="calcVal1" placeholder="Value" step="any">
+                            </div>
+                            <div class="input-group">
+                                <label>Unit 1</label>
+                                <select id="calcUnit1"></select>
+                            </div>
+                            <div class="input-group">
+                                <label>Value 2</label>
+                                <input type="number" id="calcVal2" placeholder="Value" step="any">
+                            </div>
+                            <div class="input-group">
+                                <label>Unit 2</label>
+                                <select id="calcUnit2"></select>
+                            </div>
+                            <div class="input-group full-width">
+                                <label>Result Unit</label>
+                                <select id="calcTarget"></select>
+                            </div>
+                        </div>
+                        <button class="btn-primary" id="btnCalc">
+                            <i class="fa-solid fa-calculator"></i> Calculate
+                        </button>
+                        <div id="calcResult" class="result-display" style="display:none;"></div>
+                    </div>
+                </section>
+
+                <section id="favoritesSection" class="section" style="display:none;">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-star"></i> Favorites</h2>
+                    </div>
+                    <div class="card">
+                        <div id="favList" class="list-container">
+                            <div class="empty-state">
+                                <i class="fa-regular fa-star"></i>
+                                <p>No favorites yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="historySection" class="section" style="display:none;">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-clock-rotate-left"></i> History</h2>
+                    </div>
+                    <div class="card">
+                        <div id="historyList" class="list-container">
+                            <div class="empty-state">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                <p>No history yet</p>
+                            </div>
+                        </div>
+                        <div id="historyPagination" class="pagination"></div>
+                    </div>
+                </section>
+            </main>
+        </div>
+
+        <div id="toast" class="toast" style="display:none;"></div>
+
+        <div id="favModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <h3><i class="fa-solid fa-star"></i> Save Favorite</h3>
+                <div class="input-group">
+                    <label>Label</label>
+                    <input type="text" id="favLabel" placeholder="e.g. Baking Temp" maxlength="100">
+                </div>
+                <div class="modal-info" id="favModalInfo"></div>
+                <div class="modal-actions">
+                    <button class="btn-ghost" id="btnFavCancel">Cancel</button>
+                    <button class="btn-primary" id="btnFavSave">
+                        <i class="fa-solid fa-star"></i> Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
