@@ -4,7 +4,7 @@ import User from '../models/User.js';
 import RefreshToken from '../models/RefreshToken.js';
 
 class AuthService {
-    async registerUser({ email, password, firstName, lastName }) {
+    async registerUser({ email, password, firstName, lastName, role }) {
         const existingUser = await User.findOne({ where: { email } });
         if (existingUser) {
             throw new Error('User with this email already exists.');
@@ -13,18 +13,17 @@ class AuthService {
         const saltRounds = 10;
         const passwordHash = await bcrypt.hash(password, saltRounds);
 
-        const newUser = await User.create({
-            email,
-            passwordHash,
-            firstName,
-            lastName
-        });
+        const createData = { email, passwordHash, firstName, lastName };
+        if (role === 'ADMIN') createData.role = 'ADMIN';
+
+        const newUser = await User.create(createData);
 
         return {
             id: newUser.id,
             email: newUser.email,
             firstName: newUser.firstName,
-            lastName: newUser.lastName
+            lastName: newUser.lastName,
+            role: newUser.role,
         };
     }
 
@@ -40,7 +39,7 @@ class AuthService {
         }
 
         const accessToken = jwt.sign(
-            { id: user.id }, 
+            { id: user.id, role: user.role }, 
             process.env.JWT_ACCESS_SECRET, 
             { expiresIn: '15m' }
         );
@@ -61,7 +60,7 @@ class AuthService {
         });
 
         return {
-            user: { id: user.id, email: user.email, firstName: user.firstName },
+            user: { id: user.id, email: user.email, firstName: user.firstName, role: user.role },
             accessToken,
             refreshToken: refreshTokenString
         };
