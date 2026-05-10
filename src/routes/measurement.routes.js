@@ -7,7 +7,7 @@ const router = express.Router();
 router.use(verifyToken);
 
 router.post('/convert', measurementController.convert);
-// router.post('/compare', measurementController.compare);
+router.post('/compare', measurementController.compare);
 // router.post('/calculate', measurementController.calculate);
 
 export default router;
